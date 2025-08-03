@@ -54,6 +54,20 @@ class Payment(BaseModel):
     paymentDate: datetime
     method: str
     
+class Product(BaseModel):
+    productId: str
+    name: str
+    price: float
+    category: str
+    description: Optional[str] = None
+
+class Room(BaseModel):
+    roomId: str
+    name: str
+    type: str
+    pricePerHour: float
+    description: Optional[str] = None
+    available: bool = True
 
 # ----------------------------
 # FastAPI App
@@ -122,6 +136,26 @@ def payments_util(payment) -> dict:
         "amount": payment["amount"],
         "paymentDate": payment["paymentDate"],
         "method": payment["method"]
+    }
+
+def products_util(product) -> dict:
+    return {
+        "productId": product["productId"],
+        "name": product["name"],
+        "price": product["price"],
+        "category": product["category"],
+        "description": product.get("description", None)
+    }
+
+
+def rooms_util(room) -> dict:
+    return {
+        "roomId": room["roomId"],
+        "name": room["name"],
+        "type": room["type"],
+        "pricePerHour": room["pricePerHour"],
+        "description": room.get("description", None),
+        "available": room.get("available", True)
     }
 
 # ----------------------------
@@ -217,3 +251,38 @@ async def get_payment(payment_id: str):
     if payment:
         return payments_util(payment)
     raise HTTPException(status_code=404, detail="Payment not found")
+
+# Products Routes
+
+@app.get("/products", response_model=List[Product])
+async def get_all_products():
+    products_cursor = db["products"].find()
+    products_list = []
+    async for product in products_cursor:
+        products_list.append(products_util(product))
+    return products_list
+
+@app.get("/products/{product_id}", response_model=Product)
+async def get_product(product_id: str):
+    product = await db["products"].find_one({"productId": product_id})
+    if product:
+        return products_util(product)
+    raise HTTPException(status_code=404, detail="Product not found")
+
+
+# Rooms Routes
+
+@app.get("/rooms", response_model=List[dict])
+async def get_all_rooms():
+    rooms_cursor = db["rooms"].find()
+    rooms_list = []
+    async for room in rooms_cursor:
+        rooms_list.append(rooms_util(room))
+    return rooms_list
+
+@app.get("/rooms/{room_id}", response_model=Room)
+async def get_room(room_id: str):
+    room = await db["rooms"].find_one({"roomId": room_id})
+    if room:
+        return rooms_util(room)
+    raise HTTPException(status_code=404, detail="Room not found")
