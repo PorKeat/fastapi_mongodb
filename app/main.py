@@ -35,3 +35,5 @@ async def home():
         </body>
     </html>
     """
+
+#  uvicorn app.main:app --reload
