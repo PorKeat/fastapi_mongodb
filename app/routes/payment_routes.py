@@ -2,21 +2,38 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from ..models.payment import Payment
 from ..database import db
-from ..utils.payment_utils import payments_util
 
 router = APIRouter()
 
-@router.get("/payments", response_model=List[dict])
+@router.get("/", response_model=List[Payment])
 async def get_all_payments():
-    payments_cursor = db["payments"].find()
-    payments_list = []
-    async for payment in payments_cursor:
-        payments_list.append(payments_util(payment))
-    return payments_list
+    cursor = db["payments"].find()
+    return [Payment(**doc) async for doc in cursor]
 
-@router.get("/payments/{payment_id}", response_model=Payment)
+@router.get("/{payment_id}", response_model=Payment)
 async def get_payment(payment_id: str):
     payment = await db["payments"].find_one({"paymentId": payment_id})
     if payment:
-        return payments_util(payment)
+        return Payment(**payment)
+    raise HTTPException(status_code=404, detail="Payment not found")
+
+@router.post("/", response_model=Payment)
+async def create_payment(payment: Payment):
+    result = await db["payments"].insert_one(payment.dict())
+    if result.inserted_id:
+        return payment
+    raise HTTPException(status_code=500, detail="Failed to create payment")
+
+@router.put("/{payment_id}", response_model=Payment)
+async def update_payment(payment_id: str, payment: Payment):
+    result = await db["payments"].replace_one({"paymentId": payment_id}, payment.dict())
+    if result.modified_count == 1:
+        return payment
+    raise HTTPException(status_code=404, detail="Payment not found or not modified")
+
+@router.delete("/{payment_id}")
+async def delete_payment(payment_id: str):
+    result = await db["payments"].delete_one({"paymentId": payment_id})
+    if result.deleted_count == 1:
+        return {"message": "Payment deleted"}
     raise HTTPException(status_code=404, detail="Payment not found")

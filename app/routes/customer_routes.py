@@ -2,29 +2,38 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from ..models.customer import Customer
 from ..database import db
-from ..utils.customer_utils import customers_util
 
 router = APIRouter()
 
 @router.get("/", response_model=List[Customer])
 async def get_all_customers():
-    customers_cursor = db["customers"].find()
-    customers_list = []
-    async for customer in customers_cursor:
-        customers_list.append(customers_util(customer))
-    return customers_list
+    cursor = db["customers"].find()
+    return [Customer(**doc) async for doc in cursor]
 
 @router.get("/{customer_id}", response_model=Customer)
 async def get_customer(customer_id: str):
     customer = await db["customers"].find_one({"customerId": customer_id})
     if customer:
-        return customers_util(customer)
+        return Customer(**customer)
     raise HTTPException(status_code=404, detail="Customer not found")
 
 @router.post("/", response_model=Customer)
 async def create_customer(customer: Customer):
-    customer_dict = customer.dict()
-    result = await db["customers"].insert_one(customer_dict)
-    if result.acknowledged:
-        return customers_util(customer_dict)
+    result = await db["customers"].insert_one(customer.dict())
+    if result.inserted_id:
+        return customer
     raise HTTPException(status_code=500, detail="Failed to create customer")
+
+@router.put("/{customer_id}", response_model=Customer)
+async def update_customer(customer_id: str, customer: Customer):
+    result = await db["customers"].replace_one({"customerId": customer_id}, customer.dict())
+    if result.modified_count == 1:
+        return customer
+    raise HTTPException(status_code=404, detail="Customer not found or not modified")
+
+@router.delete("/{customer_id}")
+async def delete_customer(customer_id: str):
+    result = await db["customers"].delete_one({"customerId": customer_id})
+    if result.deleted_count == 1:
+        return {"message": "Customer deleted"}
+    raise HTTPException(status_code=404, detail="Customer not found")
