@@ -10,7 +10,14 @@ from .routes import (
 )
 from fastapi.responses import HTMLResponse
 
-app = FastAPI()
+app = FastAPI(
+    title="🎤 KTV Booking API",
+    description="API for managing karaoke bookings, customers, rooms, products, and more.",
+    version="1.0.0",
+    docs_url="/docs",             # Swagger UI (default: /docs)
+    redoc_url="/redoc",           # ReDoc UI (default: /redoc)
+    openapi_url="/openapi.json"   # OpenAPI schema (default: /openapi.json)
+)
 
 app.include_router(customer_routes.router, prefix="/customers", tags=["Customers"])
 app.include_router(booking_routes.router, prefix="/bookings", tags=["Bookings"])
@@ -21,7 +28,7 @@ app.include_router(product_routes.router, prefix="/products", tags=["Products"])
 app.include_router(room_routes.router, prefix="/rooms", tags=["Rooms"])
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse,include_in_schema=False)
 async def home():
     return """
     <html>
